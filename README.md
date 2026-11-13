@@ -2,7 +2,7 @@
 
 COA (CSE 2257) Module 3 project: an interactive simulation that races a ripple-carry adder against a carry look-ahead adder, one gate delay at a time.
 
-**Live demo:** https://YOUR-USERNAME.github.io/carry-race
+**Live demo:** https://sidharthchandran.github.io/carry-race
 
 ## Features
 - 4-bit and 8-bit adders, any A, B and carry-in
