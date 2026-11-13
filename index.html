@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Carry Race — Ripple vs Carry Look-Ahead Adder</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#faf5ec;--card:#fff;--ink:#1f1b2e;--mut:#6b6478;--line:#e6dccb;--pend:#f0e8da;--rip:#e8553a;--cla:#12877f;--onacc:#fff;--ok:#2f9e5b}
+@media(prefers-color-scheme:dark){:root{--bg:#17141f;--card:#211d2e;--ink:#f5efe6;--mut:#b3aac4;--line:#373148;--pend:#2c2740;--rip:#ff8a6b;--cla:#4fd1c5;--onacc:#17141f;--ok:#5ee09a}}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:"Space Grotesk",system-ui,sans-serif;line-height:1.5}
+.wrap{max-width:1040px;margin:0 auto;padding:28px 18px 60px}
+h1{font-size:clamp(28px,5vw,46px);margin:0 0 6px;letter-spacing:-.02em}
+h1 span{color:var(--cla)} h1 em{font-style:normal;color:var(--rip)}
+.sub{color:var(--mut);max-width:680px;margin:0 0 22px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:18px;margin-bottom:16px}
+.mono{font-family:"JetBrains Mono",ui-monospace,monospace}
+.controls{display:flex;flex-wrap:wrap;gap:14px;align-items:flex-end}
+.controls label{display:flex;flex-direction:column;font-size:12px;color:var(--mut);gap:4px}
+.controls input,.controls select{font:inherit;font-family:"JetBrains Mono",monospace;font-weight:700;padding:8px 10px;width:96px;border-radius:9px;border:1px solid var(--line);background:var(--bg);color:var(--ink)}
+.seg{display:flex;border:1px solid var(--line);border-radius:9px;overflow:hidden}
+.seg button{border:0;background:var(--bg);color:var(--ink);padding:9px 14px;font:inherit;cursor:pointer}
+.seg button.on{background:var(--cla);color:var(--onacc);font-weight:700}
+.btn{font:inherit;font-weight:700;border:1px solid var(--line);background:var(--bg);color:var(--ink);padding:9px 14px;border-radius:9px;cursor:pointer}
+.btn.go{background:var(--cla);color:var(--onacc);border-color:var(--cla)}
+.btn:hover{filter:brightness(1.08)}
+.bin{font-size:12px;color:var(--mut);margin-top:10px}
+.clock{display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+.tick{font-size:34px;font-weight:700}
+.track{flex:1;min-width:160px;height:10px;border-radius:9px;background:var(--pend);overflow:hidden}
+.track i{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--rip),var(--cla));transition:width .25s}
+.panel{--acc:var(--rip);border-left:5px solid var(--acc)}
+.panel.cla{--acc:var(--cla)}
+.panel h2{margin:0;font-size:20px;display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap}
+.panel h2 small{font-size:13px;color:var(--mut);font-weight:500}
+.grid{overflow-x:auto;padding:10px 0 4px}
+.row{display:flex;align-items:center;gap:6px;margin:5px 0;min-width:max-content}
+.row>b{width:92px;font-size:12px;color:var(--mut);font-weight:500;flex:none}
+.chip{width:36px;height:36px;border-radius:9px;display:grid;place-items:center;font-family:"JetBrains Mono",monospace;font-weight:700;font-size:16px;background:var(--pend);color:var(--mut);flex:none;border:2px solid transparent;transition:background .2s}
+.chip.on{border-color:var(--acc);background:transparent;color:var(--ink)}
+.chip.on.v1{background:var(--acc);color:var(--onacc)}
+.chip.new{animation:pop .55s}
+.chip.sp{background:none;border:none}
+.chip.in{border-color:var(--line);background:transparent;color:var(--ink)}
+.chip.in.v1{background:var(--line)}
+.hd .chip{height:auto;background:none;font-size:11px;color:var(--mut);font-weight:500;width:36px}
+@keyframes pop{0%{transform:scale(.6);box-shadow:0 0 0 0 var(--acc)}60%{transform:scale(1.18)}100%{transform:scale(1);box-shadow:0 0 0 12px transparent}}
+.res{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:10px;font-size:14px;color:var(--mut)}
+.res .mono{font-size:20px;color:var(--ink);letter-spacing:.14em}
+.done{color:var(--ok);font-weight:700}
+.banner{display:none;text-align:center;font-size:clamp(16px,3vw,22px);font-weight:700;padding:16px;border-radius:14px;border:2px solid var(--cla);margin-bottom:16px;background:var(--card)}
+.banner.show{display:block;animation:pop .6s}
+.banner{--acc:var(--cla)}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+@media(max-width:760px){.two{grid-template-columns:1fr}}
+.bars div{display:grid;grid-template-columns:70px 1fr 90px;gap:10px;align-items:center;font-size:13px;margin:6px 0}
+.bars span.b{height:14px;border-radius:7px;display:block}
+.f{font-family:"JetBrains Mono",monospace;font-size:13.5px;background:var(--bg);padding:10px 12px;border-radius:10px;overflow-x:auto;line-height:1.8}
+.note{font-size:13px;color:var(--mut)}
+h3{margin:0 0 6px;font-size:17px}
+footer{color:var(--mut);font-size:13px;text-align:center;margin-top:30px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>The <em>Ripple</em> vs <span>Look-Ahead</span> Carry Race</h1>
+  <p class="sub">Every addition your computer does depends on carries. A ripple-carry adder waits for each carry in turn; a carry look-ahead adder (CLA) works them all out in advance. Pick two numbers and watch both circuits race, one gate delay at a time.</p>
+
+  <div class="card">
+    <div class="controls">
+      <label>Bit width<div class="seg" id="bits"><button data-n="4" class="on">4-bit</button><button data-n="8">8-bit</button></div></label>
+      <label>A (decimal)<input id="A" type="number" min="0" value="15"></label>
+      <label>B (decimal)<input id="B" type="number" min="0" value="1"></label>
+      <label>Carry-in c₀<select id="C0"><option>0</option><option>1</option></select></label>
+      <label>Speed<select id="spd"><option value="1100">Slow</option><option value="650" selected>Normal</option><option value="280">Fast</option></select></label>
+      <button class="btn go" id="run">▶ Start race</button>
+      <button class="btn" id="step">Step +1</button>
+      <button class="btn" id="reset">Reset</button>
+      <button class="btn" id="worst">Worst case</button>
+      <button class="btn" id="rand">Random</button>
+    </div>
+    <div class="bin mono" id="binline"></div>
+  </div>
+
+  <div class="card clock">
+    <div>Gate delay<div class="tick mono" id="t">t = 0</div></div>
+    <div class="track"><i id="prog"></i></div>
+    <div class="note">1 gate delay = time for a signal to pass through one logic gate.</div>
+  </div>
+
+  <div class="banner" id="banner"></div>
+
+  <div class="card panel" id="rip">
+    <h2>🐢 Ripple-Carry Adder <small>c<sub>i+1</sub> must wait for c<sub>i</sub> · sum ready at 2n−1 gate delays</small></h2>
+    <div class="grid" id="ripGrid"></div>
+    <div class="res"><span>Sum:</span><span class="mono" id="ripRes"></span><span id="ripStat"></span></div>
+  </div>
+
+  <div class="card panel cla" id="cla">
+    <h2>⚡ Carry Look-Ahead Adder <small>every carry computed from G and P · sum ready at 4 gate delays</small></h2>
+    <div class="grid" id="claGrid"></div>
+    <div class="res"><span>Sum:</span><span class="mono" id="claRes"></span><span id="claStat"></span></div>
+  </div>
+
+  <div class="card">
+    <h3>How much faster as numbers get bigger?</h3>
+    <p class="note" style="margin-top:0">Gate delays until the last sum bit is ready, using the textbook model (ripple: 2n−1, look-ahead: 4).</p>
+    <div class="bars" id="bars"></div>
+    <p class="note">Real chips cap the fan-in of gates, so very wide adders use look-ahead in groups of 4 bits. The idea is the same: do not wait, predict.</p>
+  </div>
+
+  <div class="two">
+    <div class="card">
+      <h3>The idea in 3 lines</h3>
+      <div class="f">G<sub>i</sub> = x<sub>i</sub>·y<sub>i</sub> &nbsp;(Generate: makes a carry itself)<br>P<sub>i</sub> = x<sub>i</sub>+y<sub>i</sub> &nbsp;(Propagate: passes a carry on)<br>c<sub>i+1</sub> = G<sub>i</sub> + P<sub>i</sub>·c<sub>i</sub><br>s<sub>i</sub> = x<sub>i</sub> ⊕ y<sub>i</sub> ⊕ c<sub>i</sub></div>
+      <p class="note">G and P use only x and y, so every bit has them after just 1 gate delay.</p>
+    </div>
+    <div class="card">
+      <h3>Why it is fast: unroll the carries</h3>
+      <div class="f">c₁ = G₀ + P₀c₀<br>c₂ = G₁ + P₁G₀ + P₁P₀c₀<br>c₃ = G₂ + P₂G₁ + P₂P₁G₀ + P₂P₁P₀c₀<br>c₄ = G₃ + P₃G₂ + P₃P₂G₁ + P₃P₂P₁G₀ + P₃P₂P₁P₀c₀</div>
+      <p class="note">Each line is an AND-OR circuit: 3 gate delays, no waiting on the previous carry.</p>
+    </div>
+  </div>
+
+  <footer>Built for Computer Organization and Architecture (CSE 2257) · Module 3: Arithmetic Unit</footer>
+</div>
+
+<script>
+(function(){
+  var n=4, t=0, timer=null, A=15, B=1, C0=0;
+  var $=function(id){return document.getElementById(id)};
+  var sub=function(i){return String(i).split("").map(function(d){return "₀₁₂₃₄₅₆₇₈₉"[d]}).join("")};
+
+  function bitsOf(v){var a=[];for(var i=0;i<n;i++)a.push((v>>i)&1);return a}
+  function compute(){
+    var x=bitsOf(A),y=bitsOf(B),G=[],P=[],S=[],c=[C0];
+    for(var i=0;i<n;i++){G[i]=x[i]&y[i];P[i]=x[i]|y[i];c[i+1]=G[i]|(P[i]&c[i]);S[i]=x[i]^y[i]^c[i]}
+    return {x:x,y:y,G:G,P:P,S:S,c:c};
+  }
+  // time (in gate delays) at which each signal becomes valid
+  var T={
+    rip:{c:function(i){return i===0?0:2*i},s:function(i){return 2*i+1}},
+    cla:{c:function(i){return i===0?0:3},s:function(){return 4},g:function(){return 1}}
+  };
+  function maxT(){return 2*n}
+  function chip(txt,cls,tip){return '<span class="chip '+cls+'" title="'+(tip||"")+'">'+txt+'</span>'}
+  function row(label,slots){return '<div class="row"><b>'+label+'</b>'+slots.join("")+'</div>'}
+
+  function build(kind,d){
+    var tm=T[kind],hd=[],rx=[],ry=[],rg=[],rp=[],rc=[],rs=[],i,j;
+    hd.push(chip("c"+sub(n)+" out","",""));
+    for(j=n-1;j>=0;j--)hd.push(chip("bit "+j,"",""));
+    for(j=n;j>=0;j--)rc.push(null);
+    // spacer for the carry-out column
+    var sp=chip("","sp","");
+    rx.push(sp);ry.push(sp);rg.push(sp);rp.push(sp);rs.push(sp);
+    for(i=n-1;i>=0;i--){
+      rx.push(chip(d.x[i],"in v"+d.x[i],"x"+i));
+      ry.push(chip(d.y[i],"in v"+d.y[i],"y"+i));
+      var gOn=kind==="cla"&&t>=tm.g(),gNew=gOn&&t===tm.g();
+      rg.push(chip(gOn?d.G[i]:"?","on"+(gOn?" v"+d.G[i]:"")+(gOn?"":"")+(gNew?" new":"") ,"G"+i+" ready at t=1"));
+      rp.push(chip(gOn?d.P[i]:"?","on"+(gOn?" v"+d.P[i]:"")+(gNew?" new":""),"P"+i+" ready at t=1"));
+      var sOn=t>=tm.s(i),sNew=t===tm.s(i);
+      rs.push(chip(sOn?d.S[i]:"?",(sOn?"on v"+d.S[i]:"")+(sNew?" new":""),"s"+i+" ready at t="+tm.s(i)));
+    }
+    var cs=[];
+    for(i=n;i>=0;i--){
+      var cOn=t>=tm.c(i),cNew=cOn&&t===tm.c(i)&&i>0;
+      cs.push(chip(cOn?d.c[i]:"?",(cOn?"on v"+d.c[i]:"")+(cNew?" new":""),"c"+i+" ready at t="+tm.c(i)));
+    }
+    var out='<div class="row hd"><b></b>'+hd.join("")+'</div>'+
+      row("x"+" (A)",rx)+row("y"+" (B)",ry);
+    if(kind==="cla")out+=row("G = x·y",rg)+row("P = x+y",rp);
+    out+=row("carry c"+"ᵢ",cs)+row("sum s"+"ᵢ",rs);
+    return out;
+  }
+
+  function status(kind,d,prefix){
+    var tm=T[kind],str="",ready=0,i,last=tm.s(n-1);
+    for(i=n-1;i>=0;i--){var on=t>=tm.s(i);if(on)ready++;str+=on?d.S[i]:"?"}
+    $(prefix+"Res").textContent=str;
+    $(prefix+"Stat").innerHTML=ready===n
+      ?'<span class="done">✔ all sums ready at t = '+last+'</span>'
+      :'<span>'+ready+' / '+n+' sum bits ready…</span>';
+    return last;
+  }
+
+  function render(){
+    var d=compute();
+    $("ripGrid").innerHTML=build("rip",d);
+    $("claGrid").innerHTML=build("cla",d);
+    var r=status("rip",d,"rip"),c=status("cla",d,"cla");
+    $("t").textContent="t = "+t;
+    $("prog").style.width=(t/maxT()*100)+"%";
+    var total=A+B+C0,mod=1<<n;
+    $("binline").textContent="A="+pad(A)+"  B="+pad(B)+"  c₀="+C0+"   →   "+A+" + "+B+(C0?" + 1":"")+" = "+total+
+      (total>=mod?"  (carry-out 1, sum bits show "+(total%mod)+")":"");
+    var fin=t>=r;
+    var b=$("banner");
+    if(fin){
+      b.className="banner show";
+      var f=(r/c).toFixed(1).replace(".0","");
+      b.innerHTML=r>c
+        ? "⚡ Look-ahead finished at t = "+c+". Ripple needed t = "+r+". That is "+f+"× faster."
+        : "Both finished at t = "+c+". For this width the two are equally fast — try 8-bit!";
+    } else b.className="banner";
+    if(fin&&timer)stop();
+  }
+  function pad(v){var s=v.toString(2);while(s.length<n)s="0"+s;return s}
+
+  function stop(){clearInterval(timer);timer=null;$("run").textContent="▶ Start race"}
+  function start(){
+    if(timer){stop();return}
+    if(t>=maxT())t=0;
+    $("run").textContent="⏸ Pause";
+    render();
+    timer=setInterval(function(){t=Math.min(maxT(),t+1);render()},+$("spd").value);
+  }
+  function reset(){stop();t=0;render()}
+  function clampIn(){
+    var m=(1<<n)-1;
+    A=Math.max(0,Math.min(m,parseInt($("A").value,10)||0));
+    B=Math.max(0,Math.min(m,parseInt($("B").value,10)||0));
+    $("A").max=m;$("B").max=m;$("A").value=A;$("B").value=B;
+    C0=+$("C0").value;
+  }
+  function changed(){stop();clampIn();t=0;render()}
+
+  $("run").onclick=start;
+  $("step").onclick=function(){stop();t=Math.min(maxT(),t+1);render()};
+  $("reset").onclick=reset;
+  $("A").oninput=$("B").oninput=$("C0").onchange=changed;
+  $("worst").onclick=function(){$("A").value=(1<<n)-1;$("B").value=1;$("C0").value=0;changed()};
+  $("rand").onclick=function(){var m=1<<n;$("A").value=Math.floor(Math.random()*m);$("B").value=Math.floor(Math.random()*m);changed()};
+  Array.prototype.forEach.call(document.querySelectorAll("#bits button"),function(btn){
+    btn.onclick=function(){
+      n=+btn.dataset.n;
+      Array.prototype.forEach.call(document.querySelectorAll("#bits button"),function(b){b.classList.toggle("on",b===btn)});
+      $("A").value=(1<<n)-1;$("B").value=1;changed();
+    };
+  });
+
+  var bars=[4,8,16,32],mx=2*32-1,h="";
+  bars.forEach(function(k){
+    var r=2*k-1;
+    h+='<div><span class="mono">'+k+'-bit</span><span><span class="b" style="width:'+(r/mx*100)+'%;background:var(--rip)"></span><span class="b" style="width:'+(4/mx*100)+'%;background:var(--cla);margin-top:4px"></span></span><span class="mono note">'+r+' vs 4</span></div>';
+  });
+  $("bars").innerHTML=h;
+
+  clampIn();render();
+})();
+</script>
+</body>
+</html>
